@@ -1,5 +1,6 @@
 // app.js
 // ありすばカード アプリケーションロジック
+console.log("ありすばカード v2.0 - 修正版JSがロードされました！");
 
 // グローバル状態管理
 let currentUser = localStorage.getItem('alice_cards_username') || '';
