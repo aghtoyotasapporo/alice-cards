@@ -298,14 +298,15 @@ button {
   height: 3000px;
   position: absolute;
   transform-style: preserve-3d;
-  transition: transform 0.1s cubic-bezier(0.25, 0.8, 0.25, 1);
   will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* リアルなコルク調の背景テクスチャ */
 .wood-texture {
   background-color: #ebdccf;
-  background-image: url('assets/corkboard.png');
+  background-image: url('assets/corkboard.jpg');
   background-repeat: repeat;
   background-size: 512px 512px;
 }
