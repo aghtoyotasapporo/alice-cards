@@ -299,6 +299,7 @@ button {
   position: absolute;
   will-change: transform;
   touch-action: none;
+  transform-origin: 0 0;
 }
 
 /* リアルなコルク調の背景テクスチャ */

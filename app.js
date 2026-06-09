@@ -181,8 +181,23 @@ function initEventListeners() {
 
   // タッチ操作（モバイル）
   boardViewport.addEventListener('touchstart', startPanTouch, { passive: false });
-  boardViewport.addEventListener('touchmove', panBoardTouch, { passive: false });
-  boardViewport.addEventListener('touchend', endPan);
+  window.addEventListener('touchmove', panBoardTouch, { passive: false });
+  window.addEventListener('touchend', endPan);
+  window.addEventListener('touchcancel', endPan);
+
+  // iOS Safari のデフォルトジェスチャズームを完全に無効化する
+  window.addEventListener('gesturestart', (e) => {
+    if (e.target.closest('#board-viewport')) {
+      e.preventDefault();
+      console.log("gesturestart prevented");
+    }
+  }, { passive: false });
+  window.addEventListener('gesturechange', (e) => {
+    if (e.target.closest('#board-viewport')) {
+      e.preventDefault();
+      console.log("gesturechange prevented");
+    }
+  }, { passive: false });
 
   // ホイールズーム (マウスカーソル位置を基準に滑らかに拡大縮小)
   boardViewport.addEventListener('wheel', (e) => {
@@ -401,7 +416,11 @@ function startPanTouch(e) {
 
 function panBoardTouch(e) {
   if (!isDragging) return;
-  e.preventDefault();
+  
+  // board-viewport内でのタッチ移動のみ、ブラウザのデフォルト挙動（スクロール・ズーム）を防止する
+  if (e.target.closest('#board-viewport')) {
+    e.preventDefault();
+  }
   
   if (touchMode === 'pan' && e.touches.length === 1) {
     if (Math.hypot(e.touches[0].clientX - dragStartX, e.touches[0].clientY - dragStartY) > 5) {
@@ -459,6 +478,8 @@ function clampPan() {
   const boardW = 3000;
   const boardH = 3000;
 
+  console.log("clampPan (before): panX =", panX, "panY =", panY, "zoom =", zoom, "viewportW =", viewportW, "viewportH =", viewportH);
+
   if (boardW * zoom >= viewportW) {
     panX = Math.min(0, Math.max(viewportW - boardW * zoom, panX));
   } else {
@@ -470,11 +491,14 @@ function clampPan() {
   } else {
     panY = (viewportH - boardH * zoom) / 2;
   }
+
+  console.log("clampPan (after): panX =", panX, "panY =", panY);
 }
 
 // 掲示板の変形を適用
 function updateBoardTransform() {
   clampPan();
+  console.log("updateBoardTransform (after clamp): panX =", panX, "panY =", panY, "zoom =", zoom);
   boardSurface.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 }
 
@@ -484,6 +508,7 @@ function centerBoardCamera() {
   const viewportH = boardViewport.clientHeight || window.innerHeight;
   panX = viewportW / 2 - 950 * zoom;
   panY = viewportH / 2 - 550 * zoom;
+  console.log("centerBoardCamera: viewportW =", viewportW, "viewportH =", viewportH, "panX =", panX, "panY =", panY, "zoom =", zoom);
   updateBoardTransform();
 }
 
