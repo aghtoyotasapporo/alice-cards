@@ -1,0 +1,24 @@
+{
+  "name": "ありすばカード掲示板",
+  "short_name": "ありすばカード",
+  "description": "感謝の気持ちをつなぐ掲示板アプリ",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fdfaf7",
+  "theme_color": "#e05e32",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

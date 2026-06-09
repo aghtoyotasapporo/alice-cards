@@ -475,8 +475,8 @@ function endPan() {
 function clampPan() {
   const viewportW = boardViewport.clientWidth || window.innerWidth;
   const viewportH = boardViewport.clientHeight || window.innerHeight;
-  const boardW = 3000;
-  const boardH = 3000;
+  const boardW = 2600;
+  const boardH = 1600;
 
   console.log("clampPan (before): panX =", panX, "panY =", panY, "zoom =", zoom, "viewportW =", viewportW, "viewportH =", viewportH);
 

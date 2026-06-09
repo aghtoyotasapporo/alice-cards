@@ -294,12 +294,14 @@ button {
 }
 
 .surface {
-  width: 3000px;
-  height: 3000px;
+  width: 2600px;
+  height: 1600px;
   position: absolute;
   will-change: transform;
   touch-action: none;
   transform-origin: 0 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 /* リアルなコルク調の背景テクスチャ */
@@ -385,6 +387,8 @@ button {
   overflow: visible;
   user-select: none;
   touch-action: none;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 /* ピン止めエフェクト */
