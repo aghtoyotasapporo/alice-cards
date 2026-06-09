@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ありすばカード掲示板</title>
+  
+  <!-- Google Fonts: Modern Interface + Handwriting style for card text -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Yusei+Magic&family=M+PLUS+Rounded+1c:wght@400;500;700&family=Zen+Kurenaido&family=Kaisei+Decol:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS Styling -->
+  <link rel="stylesheet" href="index.css">
+
+  <!-- PDF.js for rendering and cropping original PDF template in-browser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <!-- PDF-Lib for generating filled-out PDFs -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- App Main Wrapper -->
+  <div id="app">
+    
+    <!-- Header/Navigation -->
+    <header class="glass-panel">
+      <div class="header-logo">
+        <span class="logo-icon">💝</span>
+        <h1>ありすばカード</h1>
+      </div>
+      <div class="header-actions">
+        <span id="user-display" class="user-chip">読み込み中...</span>
+        <button id="btn-write" class="btn-icon-text primary-btn">
+          <i data-lucide="plus-circle"></i>
+          <span>カードを書く</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Interactive 3D Corkboard Area -->
+    <main class="board-container">
+      <!-- Instruction Help overlay -->
+      <div class="board-instructions">
+        <p><i data-lucide="info"></i> ドラッグで移動 / ホイール・ピンチで拡大縮小 / カードをクリックでズーム</p>
+      </div>
+
+      <!-- Control Bar (Zoom, Filter, View) -->
+      <div class="board-controls glass-panel">
+        <!-- Zoom Group -->
+        <div id="zoom-controls-group" class="controls-group">
+          <button id="ctrl-zoom-in" title="拡大"><i data-lucide="zoom-in"></i></button>
+          <button id="ctrl-zoom-out" title="縮小"><i data-lucide="zoom-out"></i></button>
+          <button id="ctrl-zoom-reset" title="全体表示"><i data-lucide="maximize"></i></button>
+          <div class="control-divider"></div>
+        </div>
+        
+        <!-- Filter Group -->
+        <button id="ctrl-filter-active" class="active" title="最近のカード（1ヶ月以内）">最近</button>
+        <button id="ctrl-filter-all" title="すべてのカード">すべて</button>
+        
+        <div class="control-divider"></div>
+        
+        <!-- View Toggle Group -->
+        <button id="ctrl-view-board" class="active" title="掲示板表示"><i data-lucide="layout-grid"></i><span> 掲示板</span></button>
+        <button id="ctrl-view-list" title="リスト表示"><i data-lucide="list"></i><span> リスト</span></button>
+      </div>
+
+      <!-- Zoom/Pan Viewport (Board Mode) -->
+      <div id="board-viewport" class="viewport">
+        <!-- 3D Transform Board Surface -->
+        <div id="board-surface" class="surface wood-texture">
+          <div class="grid-overlay"></div>
+          <!-- Board Title Plaque -->
+          <div class="board-title-plaque">
+            <span class="plaque-pin left-pin"></span>
+            <span class="plaque-pin right-pin"></span>
+            <h2>ありすばカード掲示板</h2>
+          </div>
+          <!-- Cards will be dynamically inserted here -->
+          <div id="cards-layer" class="cards-layer"></div>
+        </div>
+      </div>
+
+      <!-- List View Container (List Mode) -->
+      <div id="board-list-view" class="list-view-container" style="display: none;">
+        <!-- Flat list cards will be rendered here -->
+        <div id="list-cards-layer" class="list-cards-layer"></div>
+      </div>
+    </main>
+
+    <!-- FOOTER / STATS -->
+    <footer>
+      <p>&copy; 2026 ありすばカード掲示板 - 感謝の気持ちをつなぐ場所</p>
+    </footer>
+  </div>
+
+  <!-- MODAL: Username Input (First Visit / Change) -->
+  <div id="modal-user" class="modal-overlay">
+    <div class="modal-content glass-card animate-pop">
+      <div class="modal-header">
+        <h2>ユーザー登録</h2>
+      </div>
+      <div class="modal-body">
+        <p>「ありすばカード」を作成・編集するために、あなたの名前（フルネーム）を入力してください。</p>
+        <div class="input-group">
+          <label for="input-username">名前（表示名）</label>
+          <input type="text" id="input-username" placeholder="例：山田 太郎" maxlength="20" required>
+        </div>
+        <div class="input-group">
+          <label for="input-admin-passcode">管理者用パスコード（管理者のみ）</label>
+          <input type="password" id="input-admin-passcode" placeholder="管理者権限を有効にする場合は入力" maxlength="20">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-save-user" class="btn-icon-text primary-btn" disabled>
+          <span>決定する</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Card Editor (Write / Edit) -->
+  <div id="modal-editor" class="modal-overlay">
+    <div class="modal-content glass-card editor-content animate-pop">
+      <div class="modal-header">
+        <h2 id="editor-title">ありすばカードを書く</h2>
+        <button class="btn-close" id="btn-close-editor">&times;</button>
+      </div>
+      <div class="modal-body split-layout">
+        
+        <!-- Form Side -->
+        <form id="card-form" class="editor-form">
+          <input type="hidden" id="card-edit-id">
+          
+          <div class="form-row">
+            <div class="input-group">
+              <label>カードの種類 <span class="required">*</span></label>
+              <div class="radio-tiles">
+                <label class="radio-tile">
+                  <input type="radio" name="category" value="thank_you" checked>
+                  <span class="tile-content">
+                    <span class="tile-emoji">💝</span>
+                    <span class="tile-label">ありがとう！</span>
+                  </span>
+                </label>
+                <label class="radio-tile">
+                  <input type="radio" name="category" value="awesome">
+                  <span class="tile-content">
+                    <span class="tile-emoji">🌟</span>
+                    <span class="tile-label">すばらしい！</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row split">
+            <div class="input-group">
+              <label for="form-recipient">宛先（さんへ） <span class="required">*</span></label>
+              <input type="text" id="form-recipient" placeholder="例：鈴木 さん" maxlength="15" required>
+            </div>
+            <div class="input-group">
+              <label for="form-department">所属（部署など）</label>
+              <input type="text" id="form-department" placeholder="例：営業部" maxlength="15">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="form-message">感謝・称賛メッセージ <span class="required">*</span></label>
+            <textarea id="form-message" rows="5" placeholder="日頃の感謝や、すばらしい行動へのコメントを入力してください。" maxlength="200" required></textarea>
+            <span class="char-counter"><span id="char-count">0</span> / 200</span>
+          </div>
+
+          <div class="form-row split">
+            <div class="input-group">
+              <label for="form-font">書体（フォント）</label>
+              <select id="form-font">
+                <option value="Yusei Magic" selected>手書きマジック</option>
+                <option value="Kaisei Decol">レトロ風ペン</option>
+                <option value="Zen Kurenaido">細字サインペン</option>
+                <option value="M PLUS Rounded 1c">丸ゴシック</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>文字の色</label>
+              <div class="color-picker-swatches">
+                <label class="color-swatch">
+                  <input type="radio" name="textColor" value="#111111" checked>
+                  <span class="swatch-circle color-black" title="黒"></span>
+                </label>
+                <label class="color-swatch">
+                  <input type="radio" name="textColor" value="#c84113">
+                  <span class="swatch-circle color-orange" title="朱肉"></span>
+                </label>
+                <label class="color-swatch">
+                  <input type="radio" name="textColor" value="#1d4ed8">
+                  <span class="swatch-circle color-blue" title="青"></span>
+                </label>
+                <label class="color-swatch">
+                  <input type="radio" name="textColor" value="#047857">
+                  <span class="swatch-circle color-green" title="緑"></span>
+                </label>
+                <label class="color-swatch">
+                  <input type="radio" name="textColor" value="#6d28d9">
+                  <span class="swatch-circle color-purple" title="紫"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row split">
+            <div class="input-group">
+              <label for="form-sender">差出人（より） <span class="required">*</span></label>
+              <input type="text" id="form-sender" placeholder="送り主の名前" maxlength="15" required readonly>
+              <small class="helper-text">ログイン中の名前が設定されます</small>
+            </div>
+            <div class="input-group">
+              <label for="form-date">日付</label>
+              <input type="date" id="form-date" required>
+            </div>
+          </div>
+        </form>
+
+        <!-- Preview Side -->
+        <div class="editor-preview-panel">
+          <label>カードのリアルタイムプレビュー</label>
+          <div class="card-preview-container">
+            <!-- Digital Card Template Render Box -->
+            <div id="card-preview-render" class="card-render-box">
+              <img id="preview-template-img" src="" alt="Template Background">
+              <!-- Overlay Text (Positioned exactly matching lines of the PDF) -->
+              <div class="card-overlay recipient-overlay" id="preview-recipient">鈴木</div>
+              <div class="card-overlay checkbox-thank-overlay" id="preview-check-thank">✔</div>
+              <div class="card-overlay checkbox-awesome-overlay" id="preview-check-awesome">✔</div>
+              <div class="card-overlay message-overlay" id="preview-message">
+                ここに感謝のメッセージが表示されます。手書き風のフォントで綺麗にレイアウトされます。
+              </div>
+              <div class="card-overlay date-year-overlay" id="preview-date-year">2026</div>
+              <div class="card-overlay date-month-overlay" id="preview-date-month">6</div>
+              <div class="card-overlay date-day-overlay" id="preview-date-day">9</div>
+              <div class="card-overlay department-overlay" id="preview-department">営業部</div>
+              <div class="card-overlay sender-overlay" id="preview-sender">山田 太郎</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-editor" class="btn-icon-text secondary-btn">キャンセル</button>
+        <button id="btn-submit-card" class="btn-icon-text primary-btn">
+          <i data-lucide="send"></i>
+          <span id="submit-text">送信する</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Card Detail (Zoomed Card view with options) -->
+  <div id="modal-detail" class="modal-overlay">
+    <div class="modal-content glass-card detail-content animate-pop">
+      <div class="modal-header">
+        <h2>ありすばカード詳細</h2>
+        <button class="btn-close" id="btn-close-detail">&times;</button>
+      </div>
+      <div class="modal-body central-card-layout">
+        
+        <!-- Large Card Show -->
+        <div class="card-detail-wrapper">
+          <div id="card-detail-render" class="card-render-box shadow-premium">
+            <img id="detail-template-img" src="" alt="Template Background">
+            <div class="card-overlay recipient-overlay" id="detail-recipient"></div>
+            <div class="card-overlay checkbox-thank-overlay" id="detail-check-thank">✔</div>
+            <div class="card-overlay checkbox-awesome-overlay" id="detail-check-awesome">✔</div>
+            <div class="card-overlay message-overlay" id="detail-message"></div>
+            <div class="card-overlay date-year-overlay" id="detail-date-year"></div>
+            <div class="card-overlay date-month-overlay" id="detail-date-month"></div>
+            <div class="card-overlay date-day-overlay" id="detail-date-day"></div>
+            <div class="card-overlay department-overlay" id="detail-department"></div>
+            <div class="card-overlay sender-overlay" id="detail-sender"></div>
+          </div>
+        </div>
+
+        <!-- Meta info & Actions -->
+        <div class="card-meta-actions">
+          <div class="card-info-pane glass-panel">
+            <div class="info-row">
+              <span class="info-label">投稿者:</span>
+              <span class="info-val" id="detail-meta-creator"></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">投稿日時:</span>
+              <span class="info-val" id="detail-meta-createdat"></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">ステータス:</span>
+              <span class="info-val badge" id="detail-meta-status"></span>
+            </div>
+          </div>
+
+          <div class="action-buttons-pane">
+            <button id="btn-detail-download-print" class="btn-icon-text download-btn fill-btn">
+              <i data-lucide="printer"></i>
+              <span>印刷用PDF (文字のみ)</span>
+            </button>
+            <button id="btn-detail-download-full" class="btn-icon-text download-btn outline-btn">
+              <i data-lucide="download"></i>
+              <span>全体PDF (カード背景あり)</span>
+            </button>
+            <div class="owner-controls" id="detail-owner-controls">
+              <button id="btn-detail-edit" class="btn-icon-text edit-btn">
+                <i data-lucide="edit"></i>
+                <span>編集する</span>
+              </button>
+              <button id="btn-detail-delete" class="btn-icon-text delete-btn">
+                <i data-lucide="trash-2"></i>
+                <span>削除する</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Screen Overlay (for setup/PDF processing) -->
+  <div id="loading-overlay" class="loading-overlay active">
+    <div class="loading-spinner-container">
+      <div class="loading-spinner"></div>
+      <p id="loading-text">カードテンプレートを読み込んでいます...</p>
+    </div>
+  </div>
+
+  <!-- Supabase Config & SDK -->
+  <script src="supabase-config.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- Script Application -->
+  <script src="app.js"></script>
+</body>
+</html>
