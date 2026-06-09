@@ -17,10 +17,10 @@ let startX, startY;
 
 // Supabase設定の検出と初期化 (supabase-config.js の値を確認)
 const useCloudDb = (window.SUPABASE_URL && window.SUPABASE_URL !== 'YOUR_SUPABASE_URL' && window.SUPABASE_ANON_KEY && window.SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY');
-let supabase = null;
+let supabaseClient = null;
 if (useCloudDb) {
   try {
-    supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
     console.log('Supabase クラウドデータベースモードで起動しました。');
   } catch (e) {
     console.error('Supabase の初期化に失敗しました。ローカルモードで動作します:', e);
@@ -382,9 +382,9 @@ async function initializeTemplateFromJpg() {
 // カード取得
 async function fetchCards() {
   try {
-    if (supabase) {
+    if (supabaseClient) {
       // Supabaseクラウドデータベースから取得
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('cards')
         .select('*')
         .order('createdAt', { ascending: true });
@@ -675,10 +675,10 @@ async function submitCard(e) {
   };
 
   try {
-    if (supabase) {
+    if (supabaseClient) {
       if (editId) {
         // Supabaseで更新
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('cards')
           .update({
             recipient: payload.recipient,
@@ -707,7 +707,7 @@ async function submitCard(e) {
           creator: payload.creator,
           createdAt: new Date().toISOString()
         };
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('cards')
           .insert([newCard]);
         if (error) throw error;
@@ -819,9 +819,9 @@ async function deleteCard(card) {
   if (!confirm('このありすばカードを削除してもよろしいですか？')) return;
 
   try {
-    if (supabase) {
+    if (supabaseClient) {
       // Supabaseクラウドデータベースから削除
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('cards')
         .delete()
         .eq('id', card.id);
