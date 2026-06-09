@@ -353,9 +353,6 @@ async function initializeTemplateFromJpg() {
       img.onerror = reject;
     });
 
-    // 初期ロードのフェッチ
-    await fetchCards();
-    
     // 初期表示のパン位置を設定 (画面中央にボードを置く)
     panX = (boardViewport.clientWidth - 3000 * zoom) / 2;
     panY = (boardViewport.clientHeight - 2000 * zoom) / 2;
@@ -363,6 +360,11 @@ async function initializeTemplateFromJpg() {
 
     // ローディング終了
     loadingOverlay.classList.remove('active');
+
+    // 初期ロードのフェッチ (非同期で実行し、UI表示をブロックしない)
+    fetchCards().catch(error => {
+      console.error('初期カード取得エラー:', error);
+    });
   } catch (error) {
     console.error('テンプレート画像の読み込み失敗:', error);
     loadingOverlay.innerHTML = `
