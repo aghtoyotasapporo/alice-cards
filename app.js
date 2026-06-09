@@ -14,6 +14,9 @@ let panY = 100;
 let zoom = 0.45;
 let isDragging = false;
 let startX, startY;
+let dragStartX = 0;
+let dragStartY = 0;
+let hasDragged = false;
 
 // Supabase設定の検出と初期化 (supabase-config.js の値を確認)
 const useCloudDb = (window.SUPABASE_URL && window.SUPABASE_URL !== 'YOUR_SUPABASE_URL' && window.SUPABASE_ANON_KEY && window.SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY');
@@ -236,8 +239,8 @@ function initEventListeners() {
     zoom = 0.45;
     const viewportW = boardViewport.clientWidth || window.innerWidth;
     const viewportH = boardViewport.clientHeight || window.innerHeight;
-    panX = (viewportW - 3000 * zoom) / 2;
-    panY = (viewportH - 2000 * zoom) / 2;
+    panX = viewportW / 2 - 950 * zoom;
+    panY = viewportH / 2 - 550 * zoom;
     updateBoardTransform();
   });
 
@@ -329,8 +332,12 @@ function initEventListeners() {
 
 // 掲示板ドラッグ移動の処理 (マウス)
 function startPan(e) {
-  if (e.target.closest('.card-item') || e.target.closest('button')) return;
+  // ボタンや入力欄などの操作可能な要素以外は、カードの上からでもドラッグ移動を許可します
+  if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea')) return;
   isDragging = true;
+  hasDragged = false;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
   startX = e.clientX - panX;
   startY = e.clientY - panY;
   boardViewport.style.cursor = 'grabbing';
@@ -338,6 +345,9 @@ function startPan(e) {
 
 function panBoard(e) {
   if (!isDragging) return;
+  if (Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) > 5) {
+    hasDragged = true;
+  }
   panX = e.clientX - startX;
   panY = e.clientY - startY;
   updateBoardTransform();
@@ -367,11 +377,15 @@ function getTouchCenter(e) {
 
 // 掲示板ドラッグ移動・ピンチズーム処理 (タッチ・モバイル対応)
 function startPanTouch(e) {
-  if (e.target.closest('.card-item') || e.target.closest('button')) return;
+  // ボタンや入力欄などの操作可能な要素以外は、カードの上からでもドラッグ/ピンチズームを許可します
+  if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea')) return;
   isDragging = true;
+  hasDragged = false;
   
   if (e.touches.length === 1) {
     touchMode = 'pan';
+    dragStartX = e.touches[0].clientX;
+    dragStartY = e.touches[0].clientY;
     startX = e.touches[0].clientX - panX;
     startY = e.touches[0].clientY - panY;
   } else if (e.touches.length === 2) {
@@ -389,10 +403,14 @@ function panBoardTouch(e) {
   e.preventDefault();
   
   if (touchMode === 'pan' && e.touches.length === 1) {
+    if (Math.hypot(e.touches[0].clientX - dragStartX, e.touches[0].clientY - dragStartY) > 5) {
+      hasDragged = true;
+    }
     panX = e.touches[0].clientX - startX;
     panY = e.touches[0].clientY - startY;
     updateBoardTransform();
   } else if (touchMode === 'pinch' && e.touches.length === 2) {
+    hasDragged = true; // ピンチズーム操作は常にドラッグ判定とする
     const currentDist = getTouchDistance(e);
     const currentCenter = getTouchCenter(e);
     
@@ -402,13 +420,24 @@ function panBoardTouch(e) {
       // 最小ズームを0.2、最大ズームを2.0に制限
       const newZoom = Math.min(Math.max(touchStartZoom * scale, 0.2), 2.0);
       
-      // ピンチの開始時の指の中心を基準に拡大縮小する
-      const localX = (touchStartCenter.x - touchStartPanX) / touchStartZoom;
-      const localY = (touchStartCenter.y - touchStartPanY) / touchStartZoom;
+      // ビューポートのスクリーン座標を取得してオフセットを引く
+      const rect = boardViewport.getBoundingClientRect();
+      const relativeTouchStartCenter = {
+        x: touchStartCenter.x - rect.left,
+        y: touchStartCenter.y - rect.top
+      };
+      const relativeCurrentCenter = {
+        x: currentCenter.x - rect.left,
+        y: currentCenter.y - rect.top
+      };
       
-      // 指の移動（ドラッグ）も追従させるために現在の指の中心を使用
-      panX = currentCenter.x - localX * newZoom;
-      panY = currentCenter.y - localY * newZoom;
+      // ピンチの開始時の指の中心（ビューポート相対）を基準に拡大縮小する
+      const localX = (relativeTouchStartCenter.x - touchStartPanX) / touchStartZoom;
+      const localY = (relativeTouchStartCenter.y - touchStartPanY) / touchStartZoom;
+      
+      // 指の移動（ドラッグ）も追従させるために現在の指の中心（ビューポート相対）を使用
+      panX = relativeCurrentCenter.x - localX * newZoom;
+      panY = relativeCurrentCenter.y - localY * newZoom;
       zoom = newZoom;
       
       updateBoardTransform();
@@ -422,9 +451,39 @@ function endPan() {
   boardViewport.style.cursor = 'grab';
 }
 
-// 掲示板の3D変形を適用
+// パン位置の境界制限（クランプ）
+function clampPan() {
+  const viewportW = boardViewport.clientWidth || window.innerWidth;
+  const viewportH = boardViewport.clientHeight || window.innerHeight;
+  const boardW = 3000;
+  const boardH = 3000;
+
+  if (boardW * zoom >= viewportW) {
+    panX = Math.min(0, Math.max(viewportW - boardW * zoom, panX));
+  } else {
+    panX = (viewportW - boardW * zoom) / 2;
+  }
+
+  if (boardH * zoom >= viewportH) {
+    panY = Math.min(0, Math.max(viewportH - boardH * zoom, panY));
+  } else {
+    panY = (viewportH - boardH * zoom) / 2;
+  }
+}
+
+// 掲示板の変形を適用
 function updateBoardTransform() {
-  boardSurface.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`;
+  clampPan();
+  boardSurface.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+
+// コルクボードのカメラ位置を基準座標 (950, 550) にセンタリングする
+function centerBoardCamera() {
+  const viewportW = boardViewport.clientWidth || window.innerWidth;
+  const viewportH = boardViewport.clientHeight || window.innerHeight;
+  panX = viewportW / 2 - 950 * zoom;
+  panY = viewportH / 2 - 550 * zoom;
+  updateBoardTransform();
 }
 
 // --- 原本画像の読み込みと初期化 ---
@@ -444,18 +503,10 @@ async function initializeTemplateFromJpg() {
       img.onerror = reject;
     });
 
-    // 初期表示のパン位置を設定 (画面中央にボードを置く。サイズ未確定時はウィンドウサイズで代替)
-    const centerInit = () => {
-      const viewportW = boardViewport.clientWidth || window.innerWidth;
-      const viewportH = boardViewport.clientHeight || window.innerHeight;
-      panX = (viewportW - 3000 * zoom) / 2;
-      panY = (viewportH - 2000 * zoom) / 2;
-      updateBoardTransform();
-    };
-    
-    centerInit();
+    // 初期表示 of パン位置を設定
+    centerBoardCamera();
     // レイアウト確定後に正確な位置で再調整するため、少し遅らせて再実行します
-    setTimeout(centerInit, 100);
+    setTimeout(centerBoardCamera, 100);
 
     // ローディング終了
     loadingOverlay.classList.remove('active');
@@ -580,8 +631,9 @@ function createCardElement(card) {
     el.style.color = card.textColor || '#111111';
   });
 
-  // クリックで詳細表示
+  // クリックで詳細表示 (ドラッグ移動された場合は開かない)
   cardEl.addEventListener('click', (e) => {
+    if (hasDragged) return;
     e.stopPropagation();
     showCardDetail(card);
   });
@@ -655,7 +707,7 @@ function renderCards() {
 
       cardEl.style.left = `${posX}px`;
       cardEl.style.top = `${posY}px`;
-      cardEl.style.transform = `translate3d(0, 0, 0) rotateZ(${randTilt}deg)`;
+      cardEl.style.setProperty('--rand-tilt', `${randTilt}deg`);
 
       cardsLayer.appendChild(cardEl);
     });
@@ -1188,3 +1240,17 @@ function isLatestDailyCard(createdAtString) {
   
   return cardDate >= windowStart && cardDate < windowEnd;
 }
+
+// リソースの読み込み完了（CSSの適用、画像のロードなど）後に正確な座標で再センタリング
+window.addEventListener('load', () => {
+  if (currentView === 'board') {
+    centerBoardCamera();
+  }
+});
+
+// 画面リサイズ時に位置の境界を再クランプする
+window.addEventListener('resize', () => {
+  if (currentView === 'board') {
+    updateBoardTransform();
+  }
+});

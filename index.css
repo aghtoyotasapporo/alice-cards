@@ -286,7 +286,6 @@ button {
   height: 100%;
   overflow: hidden;
   cursor: grab;
-  perspective: 1200px;
   touch-action: none;
 }
 
@@ -298,10 +297,8 @@ button {
   width: 3000px;
   height: 3000px;
   position: absolute;
-  transform-style: preserve-3d;
   will-change: transform;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  touch-action: none;
 }
 
 /* リアルなコルク調の背景テクスチャ */
@@ -330,7 +327,7 @@ button {
   position: absolute;
   top: 60px;
   left: 1500px;
-  transform: translateX(-50%) translateZ(5px);
+  transform: translateX(-50%);
   background: #fdfaf7;
   padding: 12px 48px;
   border-radius: 12px;
@@ -378,7 +375,7 @@ button {
   width: var(--card-width);
   height: var(--card-height);
   cursor: pointer;
-  transform-style: preserve-3d;
+  transform: rotate(var(--rand-tilt, 0deg));
   transition: box-shadow 0.3s, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1.1);
   box-shadow: 
     0 8px 20px rgba(82, 63, 56, 0.12),
@@ -386,6 +383,7 @@ button {
   border-radius: 6px;
   overflow: visible;
   user-select: none;
+  touch-action: none;
 }
 
 /* ピン止めエフェクト */
@@ -394,7 +392,7 @@ button {
   position: absolute;
   top: -10px;
   left: 50%;
-  transform: translateX(-50%) translateZ(10px);
+  transform: translateX(-50%);
   width: 12px;
   height: 12px;
   background: radial-gradient(circle at 4px 4px, #ff4d4d 20%, #b30000 80%);
@@ -406,11 +404,11 @@ button {
 }
 
 .card-item:hover {
-  transform: translateZ(25px) scale(1.04) rotateX(2deg) rotateY(2deg) !important;
+  transform: scale(1.05) rotate(var(--rand-tilt, 0deg));
   box-shadow: 
     0 22px 40px rgba(82, 63, 56, 0.2),
     0 10px 15px rgba(82, 63, 56, 0.12);
-  z-index: 999 !important;
+  z-index: 999;
 }
 
 /* カードの描画レンダラー共通 */
@@ -569,18 +567,17 @@ button {
     0 6px 16px rgba(224, 94, 50, 0.4),
     0 2px 4px rgba(0,0,0,0.15);
   z-index: 20;
-  transform: translateZ(25px);
   letter-spacing: 1px;
   animation: pulse-latest-badge 1.5s infinite alternate ease-in-out;
 }
 
 @keyframes pulse-latest-badge {
   from {
-    transform: translateZ(25px) scale(1);
+    transform: scale(1);
     box-shadow: 0 6px 16px rgba(224, 94, 50, 0.4);
   }
   to {
-    transform: translateZ(25px) scale(1.08);
+    transform: scale(1.08);
     box-shadow: 0 8px 22px rgba(224, 94, 50, 0.55);
   }
 }
